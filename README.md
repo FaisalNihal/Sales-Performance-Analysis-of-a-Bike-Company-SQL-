@@ -388,6 +388,8 @@ group by income_category;
 
 <img width="793" height="452" alt="image" src="https://github.com/user-attachments/assets/54f53d59-fa83-4fd0-ae4a-933c2d4b2d73" />
 
+
+
 **Number of customer who have no sales record (might be purchased product before the given time period)**
 ```sql
 select count(customerkey)*100/(select count(customerkey) from `final_customer`) from `final_customer`
@@ -551,7 +553,7 @@ select count(`customerkey`) as retail_customer_number from t1
 | ---------------------- |
 | 68                     |
 
-**List of retail customers who has high chance to become churned(didn't plane any orderin last 2 month**
+**List of retail customers who has high chance to become churned(didn't place any order in last 2 month)**
 ```sql
 with t1 as(select `customerkey`,`acce_sum`,`max`,datediff((select max(orderdate) from`adventureworks sales data`),`max`) _last from `sales_amount_by_customer`
 where `acce_sum`>20 and _sum is null)

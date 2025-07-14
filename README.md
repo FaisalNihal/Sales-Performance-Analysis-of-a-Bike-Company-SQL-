@@ -103,7 +103,7 @@ FROM `product lookup`
 GROUP BY ProductKey
 ORDER BY count DESC;
 ```
-# Create a procedure to track the important matrics (use parameter to track matrics by year/month/overall)
+# Step 2: Create a procedure to track the important matrics (use parameter to track matrics by year/month/overall)
 In the second step, I created a stored procedure to dynamically track key performance metrics—revenue, profit, number of orders, customers, and total order quantity—based on a given filter (year, month, or overall), enabling flexible and parameter-driven analysis.
 ```sql
 DELIMITER $$

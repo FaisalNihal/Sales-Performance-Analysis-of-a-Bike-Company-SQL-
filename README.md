@@ -12,7 +12,8 @@ The dataset represents a bike company operating from January 2020 to June 2022. 
 
 4.Bike Components
 
-The data is structured in a snowflake schema, including the following key tables:
+
+** The data is structured in a snowflake schema, including the following key tables **
 
 1.fact_sales – sales transactions (quantity, revenue, profit)
 

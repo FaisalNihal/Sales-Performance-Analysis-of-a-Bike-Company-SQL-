@@ -103,5 +103,66 @@ FROM `product lookup`
 GROUP BY ProductKey
 ORDER BY count DESC;
 ```
+# Create a procedure to track the important matrics (use parameter to track matrics by year/month/overall)
+In the second step, I created a stored procedure to dynamically track key performance metrics—revenue, profit, number of orders, customers, and total order quantity—based on a given filter (year, month, or overall), enabling flexible and parameter-driven analysis.
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE Overall_performance_by_month_year (
+    IN in_year INT,
+    IN in_month INT
+)
+BEGIN
+    IF in_year IS NULL AND in_month IS NULL THEN
+        -- No filter: return overall performance metrics
+        SELECT 
+            COUNT(sales.`ProductKey`) AS order_number,
+            SUM(sales.`OrderQuantity`) AS order_quantity,
+            SUM(sales.`OrderQuantity` * prod.`ProductPrice`) AS revenue,
+            (
+                SUM(sales.`OrderQuantity` * prod.`ProductPrice`) - 
+                SUM(sales.`OrderQuantity` * prod.`ProductCost`)
+            ) * 100 / SUM(sales.`OrderQuantity` * prod.`ProductCost`) AS profit_per,
+            COUNT(DISTINCT sales.`CustomerKey`) AS customer_number
+        FROM 
+            `adventureworks sales data` AS sales
+        JOIN 
+            `product lookup` AS prod
+        ON 
+            sales.`ProductKey` = prod.`ProductKey`;
+
+    ELSE
+        -- Filtered by year and/or month: return performance metrics for the given period
+        SELECT 
+            COUNT(sales.`ProductKey`) AS order_number,
+            SUM(sales.`OrderQuantity`) AS order_quantity,
+            SUM(sales.`OrderQuantity` * prod.`ProductPrice`) AS revenue,
+            (
+                SUM(sales.`OrderQuantity` * prod.`ProductPrice`) - 
+                SUM(sales.`OrderQuantity` * prod.`ProductCost`)
+            ) * 100 / SUM(sales.`OrderQuantity` * prod.`ProductCost`) AS profit_per,
+            COUNT(DISTINCT sales.`CustomerKey`) AS customer_number
+        FROM 
+            `adventureworks sales data` AS sales
+        JOIN 
+            `product lookup` AS prod
+        ON 
+            sales.`ProductKey` = prod.`ProductKey`
+        WHERE 
+            (in_year IS NULL OR YEAR(sales.`OrderDate`) = in_year)
+            AND (in_month IS NULL OR MONTH(sales.`OrderDate`) = in_month);
+    END IF;
+END $$
+
+DELIMITER ;
+
+-- ✅ Example: Call procedure for overall performance
+CALL Overall_performance_by_month_year(2022, 5);
+```
+**OUTPUT**
+| order_number | order_quantity | revenue     | profit      | Customer_number |
+| ------------ | -------------- | ----------- | ----------- | --------------- |
+| 5416         | 8199           | 1768432.507 | 73.77129195 | 2105            |
+
 
 

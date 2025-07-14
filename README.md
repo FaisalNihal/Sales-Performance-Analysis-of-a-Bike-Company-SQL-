@@ -43,8 +43,6 @@ Provide recommendations based on data to enhance sales strategy, reduce returns,
 
 # Step 1: Data Tables Inspection
 In the first step, I inspected the data tables to identify null values, duplicate primary keys in dimension tables, duplicate records in the fact table, and any unwanted or inconsistent values.
-```sql
-Here's your SQL script with **clean formatting, proper indentation, and comments structured clearly** to improve readability and maintainability:
 
 ```sql
 -- ========================

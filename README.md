@@ -260,4 +260,72 @@ FROM
 **Output**
 <img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/e5191e84-4f40-45d2-b570-74e40c2c461e" />
 
+**Cumulative revenue over time**
+```sql
+SELECT 
+    EXTRACT(YEAR FROM sales.`OrderDate`) AS _year,
+    EXTRACT(MONTH FROM sales.`OrderDate`) AS _month,
+    revenue,
+    SUM(revenue) OVER (
+        ORDER BY 
+            EXTRACT(YEAR FROM sales.`OrderDate`), 
+            EXTRACT(MONTH FROM sales.`OrderDate`)
+    ) AS cumulative_revenue
+FROM 
+    `sales_trend_over_time` AS sales
+ORDER BY 
+    EXTRACT(YEAR FROM sales.`OrderDate`), 
+    EXTRACT(MONTH FROM sales.`OrderDate`) ASC;
+```
+**Output**
+<img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/50b5bd2f-9509-44de-a4fa-a5e80fee9a95" />
+
+**3 Month Moving Average (used to forecast future sales revenue)**
+```sql
+SELECT 
+    EXTRACT(YEAR FROM sales.`OrderDate`) AS _year,
+    EXTRACT(MONTH FROM sales.`OrderDate`) AS _month,
+    revenue,
+    ROUND(
+        AVG(revenue) OVER (
+            ORDER BY 
+                EXTRACT(YEAR FROM sales.`OrderDate`), 
+                EXTRACT(MONTH FROM sales.`OrderDate`)
+            ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+        ),
+        0
+    ) AS moving_avg_3_month
+FROM 
+    `sales_trend_over_time` AS sales
+ORDER BY 
+    EXTRACT(YEAR FROM sales.`OrderDate`), 
+    EXTRACT(MONTH FROM sales.`OrderDate`) ASC;
+```
+**Output**
+| year | month_ | revenue | 3 month moving_average |
+| ---- | ------ | ------- | ---------------------- |
+| 2020 | 1      | 585313  | 585313                 |
+| 2020 | 2      | 532226  | 558770                 |
+| 2020 | 3      | 643436  | 586992                 |
+| 2020 | 4      | 653364  | 609675                 |
+| 2020 | 5      | 659326  | 652042                 |
+| 2020 | 6      | 669989  | 660893                 |
+| 2020 | 7      | 486115  | 605143                 |
+| 2020 | 8      | 536453  | 564186                 |
+| 2020 | 9      | 344063  | 455544                 |
+| 2020 | 10     | 404277  | 428264                 |
+| 2020 | 11     | 326611  | 358317                 |
+| 2020 | 12     | 563762  | 431550                 |
+| 2021 | 1      | 432426  | 440933                 |
+| 2021 | 2      | 474163  | 490117                 |
+| 2021 | 3      | 471962  | 459517                 |
+| 2021 | 4      | 494957  | 480361                 |
+| 2021 | 5      | 545535  | 504151                 |
+| 2021 | 6      | 533825  | 524772                 |
+| 2021 | 7      | 815356  | 631572                 |
+| 2021 | 8      | 804193  | 717791                 |
+
+
+
+
 

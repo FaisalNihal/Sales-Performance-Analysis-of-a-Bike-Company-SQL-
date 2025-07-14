@@ -370,7 +370,284 @@ GROUP BY
 | 2022 | 6857                |
 | 2020 | 2630                |
 
+**Number of customer and revenue per customer by income_category**
+``` sql
+select income_category,count(customerkey) as num_customer, sum(revenue)/count(customerkey) as rev_per_cust
+from `final_customer`
+where ordernumber<>0
+group by income_category;
+```
+**Output**
+| income_category | number ofcustomer | revenue_per_customer |
+| --------------- | ----------------- | -------------------- |
+| mid             | 4879              | 1674.080344          |
+| low             | 6075              | 1209.323951          |
+| very low        | 4922              | 1029.425843          |
+| very high       | 197               | 2141.649746          |
+| high            | 1343              | 1964.960536          |
 
+<img width="793" height="452" alt="image" src="https://github.com/user-attachments/assets/54f53d59-fa83-4fd0-ae4a-933c2d4b2d73" />
 
+**Number of customer who have no sales record (might be purchased product before the given time period)**
+```sql
+select count(customerkey)*100/(select count(customerkey) from `final_customer`) from `final_customer`
+where ordernumber=0;
+```
+**Output**
+| No sales customer % |
+| ------------------- |
+| 4.0335              |
+
+**Customers who buy our main product(Bike) but didn't purchase any accessories**
+```sql
+WITH t1 AS (
+    SELECT 
+        cust.`CustomerKey`, 
+        SUM(sales.`OrderQuantity`) AS sum_,
+        MAX(sales.`OrderDate`) AS _max
+    FROM 
+        `customer lookup` AS cust
+    LEFT JOIN 
+        `adventureworks sales data` AS sales 
+        ON cust.`CustomerKey` = sales.`CustomerKey`
+    JOIN 
+        `product lookup` AS prod 
+        ON sales.`ProductKey` = prod.`ProductKey`
+    WHERE 
+        prod.`ProductSubcategoryKey` IN (1, 2, 3)
+    GROUP BY 
+        cust.`CustomerKey`
+),
+
+t2 AS (
+    SELECT 
+        cust.`CustomerKey`, 
+        SUM(sales.`OrderQuantity`) AS Acce_sum_,
+        MAX(sales.`OrderDate`) AS _max
+    FROM 
+        `customer lookup` AS cust
+    LEFT JOIN 
+        `adventureworks sales data` AS sales 
+        ON cust.`CustomerKey` = sales.`CustomerKey`
+    JOIN 
+        `product lookup` AS prod 
+        ON sales.`ProductKey` = prod.`ProductKey`
+    WHERE 
+        prod.`ProductSubcategoryKey` NOT IN (1, 2, 3)
+    GROUP BY 
+        cust.`CustomerKey`
+),
+
+t3 AS (
+    SELECT 
+        t1.*, 
+        t2.Acce_sum_
+    FROM 
+        t1
+    LEFT JOIN 
+        t2 ON t1.`CustomerKey` = t2.`CustomerKey`
+)
+
+SELECT 
+    `CustomerKey`
+FROM 
+    t3
+WHERE 
+    Acce_sum_ IS NULL;
+```
+**Output**
+**Customer number: 1258**
+| CustomerKey |
+| ----------- |
+| 12483       |
+| 11759       |
+| 12464       |
+| 14722       |
+| 11129       |
+| 12547       |
+
+**Top 3 Customers of Each Country**
+```sql
+WITH t1 AS (
+    SELECT 
+        sales.`CustomerKey`, 
+        (sales.`OrderQuantity` * prod.`ProductPrice`) AS revenue,
+        sales.`TerritoryKey`
+    FROM 
+        `adventureworks sales data` AS sales
+    JOIN 
+        `product lookup` AS prod 
+        ON prod.`ProductKey` = sales.`ProductKey`
+),
+
+t2 AS (
+    SELECT 
+        t1.`CustomerKey`, 
+        terr.`Country`, 
+        ROUND(SUM(t1.`revenue`), 0) AS total_revenue
+    FROM 
+        t1
+    JOIN 
+        `territory lookup` AS terr 
+        ON t1.`TerritoryKey` = terr.`SalesTerritoryKey`
+    GROUP BY 
+        t1.`CustomerKey`, 
+        terr.`Country`
+),
+
+t3 AS (
+    SELECT 
+        `CustomerKey`, 
+        `Country`, 
+        `total_revenue`,
+        RANK() OVER (
+            PARTITION BY `Country` 
+            ORDER BY `total_revenue` DESC
+        ) AS _rank_
+    FROM 
+        t2
+)
+
+SELECT 
+    `CustomerKey`, 
+    `Country`, 
+    `total_revenue`, 
+    _rank_
+FROM 
+    t3
+WHERE 
+    _rank_ <= 3;
+```
+**Output**
+| customerkey | country        | total_revenue | _rank_ |
+| ----------- | -------------- | ------------- | ------ |
+| 11767       | Australia      | 8118          | 1      |
+| 11766       | Australia      | 8098          | 2      |
+| 11456       | Australia      | 8064          | 3      |
+| 23074       | Canada         | 6044          | 1      |
+| 23057       | Canada         | 6020          | 2      |
+| 22881       | Canada         | 5997          | 3      |
+| 11433       | France         | 12408         | 1      |
+| 11439       | France         | 12015         | 2      |
+| 11241       | France         | 11330         | 3      |
+| 11245       | Germany        | 10166         | 1      |
+| 11237       | Germany        | 10065         | 2      |
+| 11428       | Germany        | 9762          | 3      |
+| 15106       | United Kingdom | 8186          | 1      |
+| 15097       | United Kingdom | 8150          | 2      |
+| 15692       | United Kingdom | 8146          | 3      |
+| 11175       | United States  | 6537          | 1      |
+| 11171       | United States  | 6535          | 2      |
+| 11259       | United States  | 6523          | 3      |
+
+**Number of retail customers of Accessories**
+```sql
+with t1 as (select `customerkey`,`acce_sum`,`max`,datediff((select max(orderdate) from`adventureworks sales data`),`max`) _last from `sales_amount_by_customer`
+where `acce_sum`>20 and _sum is null)
+select count(`customerkey`) as retail_customer_number from t1
+```
+**Output**
+| retail_customer_number |
+| ---------------------- |
+| 68                     |
+
+**List of retail customers who has high chance to become churned(didn't plane any orderin last 2 month**
+```sql
+with t1 as(select `customerkey`,`acce_sum`,`max`,datediff((select max(orderdate) from`adventureworks sales data`),`max`) _last from `sales_amount_by_customer`
+where `acce_sum`>20 and _sum is null)
+select `customerkey`,`acce_sum` from t1 
+where _last>60;
+```
+**Output**
+**Churned Customer number: 21**
+| customerkey | accessories Order quantity |
+| ----------- | -------------------------- |
+| 11530       | 43                         |
+| 17374       | 21                         |
+| 12165       | 28                         |
+| 12202       | 23                         |
+| 13318       | 21                         |
+
+**List of customers who buy at least one bike and 10 accessories**
+```sql
+select `customerkey`,`acce_sum`,`max`,datediff((select max(orderdate) from`adventureworks sales data`),`max`) _last from `sales_amount_by_customer`
+where `acce_sum`>=10 and _sum>=1;
+```
+**Output**
+**Customer Number: 185**
+| customerkey | max_order_date |
+| ----------- | -------------- |
+| 11400       | 20/01/2022     |
+| 11457       | 03/12/2021     |
+| 11456       | 02/12/2021     |
+| 11451       | 07/12/2021     |
+| 11761       | 30/01/2022     |
+| 14171       | 14/06/2022     |
+| 15059       | 22/06/2022     |
+
+**List of customers who buy more than 2 bikes and their last purchase is within 100 days and overall purchase duration is more then 300 days**
+```sql
+WITH t1 AS (
+    SELECT 
+        s.`CustomerKey`, 
+        SUM(s.`OrderQuantity`) AS orderquantity,
+        SUM(s.`OrderQuantity` * p.`ProductPrice`) / SUM(s.`OrderQuantity`) AS revenue_per_order,
+        MIN(s.`OrderDate`) AS min_,
+        DATEDIFF(
+            (SELECT MAX(`OrderDate`) FROM `adventureworks sales data`),
+            MAX(s.`OrderDate`)
+        ) AS _last,
+        DATEDIFF(MAX(s.`OrderDate`), MIN(s.`OrderDate`)) AS _duration
+    FROM 
+        `product lookup` AS p
+    JOIN 
+        `adventureworks sales data` AS s 
+        ON p.`ProductKey` = s.`ProductKey`
+    WHERE 
+        p.`ProductSubcategoryKey` BETWEEN 1 AND 3
+    GROUP BY 
+        s.`CustomerKey`
+    HAVING 
+        SUM(s.`OrderQuantity`) > 2
+)
+
+SELECT 
+    `CustomerKey`, 
+    orderquantity, 
+    min_, 
+    _last, 
+    _duration
+FROM 
+    t1
+WHERE 
+    _last < 100 
+    AND _duration > 300;
+```
+**Output**
+**Customer Number:426**
+| customerkey | orderquantity | 1st order  | Last purchase(day) | Customer_lifetime |
+| ----------- | ------------- | ---------- | ------------------ | ----------------- |
+| 14947       | 3             | 02/01/2020 | 51                 | 859               |
+| 14937       | 3             | 07/01/2020 | 49                 | 856               |
+| 14950       | 3             | 13/01/2020 | 11                 | 888               |
+| 14941       | 3             | 14/01/2020 | 32                 | 866               |
+| 11750       | 3             | 14/01/2020 | 88                 | 810               |
+
+**Number of new customers of each income category in 2022**
+```sql
+select f.`income_category`,count(distinct s.`CustomerKey`) from `final_customer` f join `adventureworks sales data`s
+on f.customerkey=s.customerkey 
+where year(s.orderdate)=2022 and s.`CustomerKey` not in (select distinct customerkey from`adventureworks sales data`
+where year(orderdate)<2022)
+group by f.`income_category`;
+```
+**Output**
+| income_category | New Customer (2022) |
+| --------------- | ------------------- |
+| high            | 445                 |
+| low             | 2466                |
+| mid             | 1862                |
+| very high       | 70                  |
+| very low        | 2014                |
 
 

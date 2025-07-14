@@ -41,4 +41,69 @@ Highlight high-return products, declining categories, and underperforming region
 **5**. Deliver Actionable Insights
 Provide recommendations based on data to enhance sales strategy, reduce returns, and optimize product offerings.
 
+# Step 1: Data Tables Inspection
+In the first step, I inspected the data tables to identify null values, duplicate primary keys in dimension tables, duplicate records in the fact table, and any unwanted or inconsistent values.
+```sql
+Here's your SQL script with **clean formatting, proper indentation, and comments structured clearly** to improve readability and maintainability:
+
+```sql
+-- ========================
+-- Customer Table Inspection
+-- ========================
+
+-- 1. Check for duplicate values in primary column (CustomerKey)
+SELECT CustomerKey, COUNT(CustomerKey) AS count
+FROM `customer lookup`
+GROUP BY CustomerKey
+ORDER BY count DESC;
+
+-- 2. Remove unwanted columns
+ALTER TABLE `customer lookup`
+DROP COLUMN `MaritalStatus`,
+DROP COLUMN `TotalChildren`,
+DROP COLUMN `EducationLevel`,
+DROP COLUMN `HomeOwner`;
+
+-- 3. Check for null values in important columns
+SELECT `BirthDate`, `Gender`, `AnnualIncome`, `Occupation`
+FROM `customer lookup`
+WHERE `BirthDate` IS NULL 
+   OR `Gender` IS NULL 
+   OR `AnnualIncome` IS NULL 
+   OR `Occupation` IS NULL;
+
+-- ========================
+-- Fact Table Inspection
+-- ========================
+
+-- 4. Check for duplicate records
+SELECT COUNT(*) AS total_records FROM `adventureworks sales data`;
+
+SELECT COUNT(*) AS distinct_records
+FROM (SELECT DISTINCT * FROM `adventureworks sales data`) AS t1;
+
+-- 5. Check for null values in key columns
+SELECT `ProductKey`, `CustomerKey`, `TerritoryKey`, `OrderLineItem`, `OrderQuantity`
+FROM `adventureworks sales data`
+WHERE `ProductKey` IS NULL 
+   OR `CustomerKey` IS NULL 
+   OR `TerritoryKey` IS NULL 
+   OR `OrderLineItem` IS NULL 
+   OR `OrderQuantity` IS NULL;
+
+-- 6. Delete records with null OrderQuantity
+DELETE FROM `adventureworks sales data` 
+WHERE `OrderQuantity` IS NULL;
+
+-- ========================
+-- Product Table Inspection
+-- ========================
+
+-- 7. Check for duplicate values in primary column (ProductKey)
+SELECT ProductKey, COUNT(ProductKey) AS count
+FROM `product lookup`
+GROUP BY ProductKey
+ORDER BY count DESC;
+```
+
 

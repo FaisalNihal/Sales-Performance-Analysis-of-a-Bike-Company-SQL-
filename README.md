@@ -325,6 +325,51 @@ ORDER BY
 | 2021 | 7      | 815356  | 631572                 |
 | 2021 | 8      | 804193  | 717791                 |
 
+# Step 4: Customer Wise Performance Analysis
+**Total Customer**
+```sql
+select count(`CustomerKey`) as Total_customer from ` customer lookup`;
+```
+**Output**
+| Total_customer |
+| -------------- |
+| 18148          |
+
+**Number of new customer in each year**
+```sql
+WITH t1 AS (
+    SELECT 
+        EXTRACT(YEAR FROM `OrderDate`) AS year_,
+        `CustomerKey`,
+        COUNT(`OrderDate`) AS order_count,
+        ROW_NUMBER() OVER (
+            PARTITION BY `CustomerKey` 
+            ORDER BY EXTRACT(YEAR FROM `OrderDate`)
+        ) AS row_
+    FROM 
+        `adventureworks sales data`
+    GROUP BY 
+        EXTRACT(YEAR FROM `OrderDate`), 
+        `CustomerKey`
+)
+
+SELECT 
+    year_,
+    COUNT(`CustomerKey`) AS new_customers
+FROM 
+    t1
+WHERE 
+    row_ = 1
+GROUP BY 
+    year_;
+```
+**Output**
+| year | New Customer_number |
+| ---- | ------------------- |
+| 2021 | 7929                |
+| 2022 | 6857                |
+| 2020 | 2630                |
+
 
 
 

@@ -164,5 +164,100 @@ CALL Overall_performance_by_month_year(2022, 5);
 | ------------ | -------------- | ----------- | ----------- | --------------- |
 | 5416         | 8199           | 1768432.507 | 73.77129195 | 2105            |
 
+# Step 3: Sales trend over time
+I analyzed sales performance over time by calculating monthly revenue, cumulative revenue, and a 3-month moving average, which can assist in identifying trends and supporting future sales forecasting.
+**Sales trend over times (bikes)**
+```sql
+WITH t1 AS (
+    SELECT 
+        EXTRACT(YEAR FROM sales.`OrderDate`) AS _year,
+        EXTRACT(MONTH FROM sales.`OrderDate`) AS _month,
+        COUNT(sales.`ProductKey`) AS order_number,
+        SUM(sales.`OrderQuantity`) AS order_quantity,
+        ROUND(
+            SUM(sales.`OrderQuantity` * prod.`ProductPrice`), 
+            0
+        ) AS revenue,
+        ROUND(
+            (
+                SUM(sales.`OrderQuantity` * prod.`ProductPrice`) - 
+                SUM(sales.`OrderQuantity` * prod.`ProductCost`)
+            ) * 100 / 
+            SUM(sales.`OrderQuantity` * prod.`ProductCost`), 
+            0
+        ) AS profit_per,
+        COUNT(DISTINCT sales.`CustomerKey`) AS customer_number,
+        COUNT(DISTINCT sales.`ProductKey`) AS number_of_product
+    FROM 
+        `adventureworks sales data` AS sales
+    JOIN 
+        `product lookup` AS prod 
+        ON prod.`ProductKey` = sales.`ProductKey`
+    WHERE 
+        prod.`ProductSubcategoryKey`  BETWEEN 1 AND 3
+    GROUP BY 
+        EXTRACT(YEAR FROM sales.`OrderDate`), 
+        EXTRACT(MONTH FROM sales.`OrderDate`)
+    ORDER BY 
+        EXTRACT(YEAR FROM sales.`OrderDate`), 
+        EXTRACT(MONTH FROM sales.`OrderDate`)
+)
+
+SELECT 
+    _year,
+    _month,
+    order_quantity
+FROM 
+    t1;
+```
+**Output**
+<img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/97f95bf8-d8ed-4de4-9d94-a0a9e5bc6454" />
+
+**Sales trend over time (Other Accessories)**
+```sql
+WITH t1 AS (
+    SELECT 
+        EXTRACT(YEAR FROM sales.`OrderDate`) AS _year,
+        EXTRACT(MONTH FROM sales.`OrderDate`) AS _month,
+        COUNT(sales.`ProductKey`) AS order_number,
+        SUM(sales.`OrderQuantity`) AS order_quantity,
+        ROUND(
+            SUM(sales.`OrderQuantity` * prod.`ProductPrice`), 
+            0
+        ) AS revenue,
+        ROUND(
+            (
+                SUM(sales.`OrderQuantity` * prod.`ProductPrice`) - 
+                SUM(sales.`OrderQuantity` * prod.`ProductCost`)
+            ) * 100 / 
+            SUM(sales.`OrderQuantity` * prod.`ProductCost`), 
+            0
+        ) AS profit_per,
+        COUNT(DISTINCT sales.`CustomerKey`) AS customer_number,
+        COUNT(DISTINCT sales.`ProductKey`) AS number_of_product
+    FROM 
+        `adventureworks sales data` AS sales
+    JOIN 
+        `product lookup` AS prod 
+        ON prod.`ProductKey` = sales.`ProductKey`
+    WHERE 
+        prod.`ProductSubcategoryKey` NOT BETWEEN 1 AND 3
+    GROUP BY 
+        EXTRACT(YEAR FROM sales.`OrderDate`), 
+        EXTRACT(MONTH FROM sales.`OrderDate`)
+    ORDER BY 
+        EXTRACT(YEAR FROM sales.`OrderDate`), 
+        EXTRACT(MONTH FROM sales.`OrderDate`)
+)
+
+SELECT 
+    _year,
+    _month,
+    order_quantity
+FROM 
+    t1;
+```
+**Output**
+<img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/e5191e84-4f40-45d2-b570-74e40c2c461e" />
 
 

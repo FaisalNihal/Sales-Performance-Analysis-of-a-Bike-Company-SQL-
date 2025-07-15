@@ -1082,7 +1082,327 @@ where min=2020 and max=2022;
 | 360        | 1                     | 2049.0982    | 602            |
 | 356        | 1                     | 2071.4196    | 571            |
 | 383        | 2                     | 1000.4375    | 259            |
-| 389        | 2                     | 1000.4375    | 258            |
+| 389        | 2                     | 1000.4375    | 258            |<br>
+
+
+**Sales performance of products (Accessories and others)**
+```sql
+SELECT 
+    p.SubcategoryName,
+    COUNT(c.CustomerKey) AS total_order,
+    SUM(c.OrderQuantity) / COUNT(c.CustomerKey) AS total_quantity,
+    ROUND(SUM(c.rev), 0) AS total_revenue,
+    ROUND(
+        (SUM(c.rev) - SUM(c.total_cost)) * 100.0 / NULLIF(SUM(c.total_cost), 0),
+        0
+    ) AS profit_per
+FROM 
+    `product subcategories lookup` p
+JOIN 
+    (
+        SELECT * 
+        FROM category  
+        WHERE ProductSubcategoryKey NOT IN (1, 2, 3)
+    ) AS c
+    ON p.ProductSubcategoryKey = c.ProductSubcategoryKey
+GROUP BY 
+    p.SubcategoryName;
+```
+<br>
+
+**Output**<br>
+**Profit %: 148%**<br>
+<img width="757" height="495" alt="image" src="https://github.com/user-attachments/assets/6522baad-fb3f-48f3-9a32-6ea564594fd6" /><br>
+
+**Number of products and unsold Products in each categories of accessories**
+```sql
+WITH t1 AS (
+    SELECT 
+        p.CategoryName,
+        p.ProductCategoryKey,
+        COUNT(a.ProductKey) AS total_pro
+    FROM 
+        `product categories lookup` p
+    JOIN 
+        `product subcategories lookup` s 
+        ON p.ProductCategoryKey = s.ProductCategoryKey
+    JOIN 
+        `product lookup` a 
+        ON s.ProductSubcategoryKey = a.ProductSubcategoryKey
+    WHERE 
+        a.ProductSubcategoryKey NOT IN (1, 2, 3)
+    GROUP BY 
+        p.CategoryName, 
+        p.ProductCategoryKey
+),
+
+t2 AS (
+    SELECT 
+        ProductCategoryKey,
+        COUNT(DISTINCT ProductKey) AS sold_num_of_pro,
+        SUM(OrderQuantity) AS total_quantity,
+        ROUND(SUM(rev), 0) AS total_revenue
+    FROM 
+        category
+    GROUP BY 
+        ProductCategoryKey
+)
+
+SELECT 
+    t1.*,
+    COALESCE(t2.sold_num_of_pro, 0) AS sold_num,
+    (t1.total_pro - COALESCE(t2.sold_num_of_pro, 0)) AS unsold_pro,
+    t2.total_quantity,
+    t2.total_revenue
+FROM 
+    t1
+LEFT JOIN 
+    t2 
+    ON t1.ProductCategoryKey = t2.ProductCategoryKey;
+```
+
+**Output**
+| CategoryName | total Product | sold_number | unsold_number | total_quantity | total_revenue |
+| ------------ | ------------- | ----------- | ------------- | -------------- | ------------- |
+| Accessories  | 29            | 22          | 7             | 57809          | 906673        |
+| Clothing     | 35            | 20          | 15            | 12436          | 365419        |
+| Components   | 132           | 0           | 132           | NULL           | NULL          |
+
+<img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/f0dfe121-755b-4ab3-b591-f175c73983d9" /> <br>
+
+
+**Year Wise sales performance of Accessories**
+```sql
+select extract(year from orderdate), count(c.customerkey) as total_order,  sum(orderquantity)/count(distinct month(orderdate)) as quantity_per_month,
+round(sum(c.rev),0) as total_revenue, (sum(c.rev)-sum(c.total_cost))*100/sum(c.total_cost) as profit_per
+from (select * from category  where `ProductSubcategoryKey` not in (1,2,3)) as c
+group by extract(year from orderdate);
+```
+**Output**
+| Year | total_order | quantity_per_month | total_revenue | profit_per  |
+| ---- | ----------- | ------------------ | ------------- | ----------- |
+| 2021 | 18325       | 5103.3333          | 555497        | 135.9461784 |
+| 2022 | 23792       | 6604.1667          | 716595        | 134.8637815 |<br>
+
+
+**Accessories purchase amount relation with bike price**<br>
+**Helps to find out customer's accessories purchase amount relation with their purchased bike's price**
+```sql
+WITH t1 AS (
+    SELECT 
+        s.CustomerKey, 
+        AVG(p.ProductPrice) AS price, 
+        SUM(s.OrderQuantity) AS bike_sell, 
+        MAX(OrderDate) AS _max
+    FROM 
+        `product lookup` p
+    JOIN 
+        `adventureworks sales data` s 
+        ON p.ProductKey = s.ProductKey
+    WHERE 
+        p.ProductSubcategoryKey BETWEEN 1 AND 3  -- Bike categories
+    GROUP BY 
+        s.CustomerKey
+),
+
+t2 AS (
+    SELECT 
+        CustomerKey, 
+        SUM(OrderQuantity) AS order_quantity,
+        SUM(OrderQuantity * ProductPrice) AS revenue
+    FROM 
+        category
+    WHERE 
+        ProductSubcategoryKey NOT IN (1, 2, 3)  -- Accessories
+    GROUP BY 
+        CustomerKey
+),
+
+t3 AS (
+    SELECT 
+        t1.*, 
+        t2.order_quantity, 
+        t2.revenue,
+        CASE
+            WHEN price < 1000 THEN 'low'
+            WHEN price BETWEEN 1000 AND 2000 THEN 'mid'
+            WHEN price > 2000 THEN 'high'
+        END AS price_range
+    FROM 
+        t1
+    LEFT JOIN 
+        t2 ON t1.CustomerKey = t2.CustomerKey
+    WHERE 
+        t2.order_quantity IS NOT NULL
+)
+
+SELECT 
+    price_range AS bike_price_range,
+    AVG(order_quantity) AS accessory_quantity_per_order,
+    AVG(revenue) AS accessory_revenue_per_order
+FROM 
+    t3
+WHERE 
+    YEAR(_max) = 2022
+GROUP BY 
+    price_range;
+```
+**Output**<br>
+**Customers who purchase high price bikes, have high accessories purchase amount per order**
+
+| bike_price_range | accessory_quantity_per_order | accessory_revenue_per_order |
+| ---------------- | ---------------------------- | --------------------------- |
+| mid              | 3.5574                       | 70.9853008                  |
+| high             | 4.2213                       | 75.02538236                 |
+| low              | 3.5223                       | 61.74893368                 |
+
+<img width="577" height="377" alt="image" src="https://github.com/user-attachments/assets/aed8810d-fbe2-4423-8aa8-240ddbb24f6b" /><br>
+
+**Number of products in each accessories and their sales amount per product**
+```sql
+WITH t1 AS (
+    SELECT 
+        s.SubcategoryName,
+        s.ProductSubcategoryKey,
+        COUNT(p.ProductKey) AS total_products
+    FROM 
+        `product subcategories lookup` s
+    JOIN 
+        `product lookup` p 
+        ON s.ProductSubcategoryKey = p.ProductSubcategoryKey
+    WHERE 
+        p.ProductSubcategoryKey NOT IN (1, 2, 3)
+    GROUP BY 
+        s.SubcategoryName,
+        s.ProductSubcategoryKey
+),
+
+t2 AS (
+    SELECT 
+        p.SubcategoryName,
+        p.ProductSubcategoryKey,
+        COUNT(DISTINCT c.ProductKey) AS pro_num,
+        COUNT(c.CustomerKey) AS total_order,
+        SUM(c.OrderQuantity) AS quantity,
+        ROUND(SUM(c.rev), 0) AS total_revenue,
+        ROUND(
+            (SUM(c.rev) - SUM(c.total_cost)) * 100.0 / NULLIF(SUM(c.total_cost), 0),
+            0
+        ) AS profit_per
+    FROM 
+        `product subcategories lookup` p
+    JOIN 
+        (
+            SELECT * 
+            FROM category  
+            WHERE ProductSubcategoryKey NOT IN (1, 2, 3)
+        ) AS c 
+        ON p.ProductSubcategoryKey = c.ProductSubcategoryKey
+    GROUP BY 
+        p.SubcategoryName,
+        p.ProductSubcategoryKey
+),
+
+t3 AS (
+    SELECT 
+        t1.*,
+        t2.pro_num,
+        t2.total_order,
+        t2.quantity,
+        t2.total_revenue,
+        t2.profit_per
+    FROM 
+        t1
+    LEFT JOIN 
+        t2 ON t1.ProductSubcategoryKey = t2.ProductSubcategoryKey
+)
+
+SELECT 
+    SubcategoryName,
+    total_order / NULLIF(pro_num, 0) AS order_per_pro,
+    total_products,
+    (total_products - COALESCE(pro_num, 0)) AS unsold
+FROM 
+    t3;
+```
+**Output**<br>
+**Top 5 Products by order number by product number**
+| SubcategoryName   | order_per_pro | total_products | unsold |
+| ----------------- | ------------- | -------------- | ------ |
+| Bottles and Cages | 2515.6667     | 3              | 0      |
+| Caps              | 2062          | 1              | 0      |
+| Helmets           | 2011.3333     | 3              | 0      |
+| Fenders           | 1975          | 1              | 0      |
+| Tires and Tubes   | 1451.8182     | 11             | 0      |<br>
+
+**Order quantity per order relation with product's price_range(Accessories and others)**
+```sql
+WITH t1 AS (
+    SELECT 
+        p.SubcategoryName,
+        p.ProductSubcategoryKey,
+        c.ProductKey,
+        c.ProductPrice,
+        CASE
+            WHEN c.ProductPrice < 20 THEN 'low'
+            WHEN c.ProductPrice BETWEEN 20 AND 50 THEN 'mid'
+            ELSE 'high'
+        END AS price_range,
+        COUNT(c.CustomerKey) AS total_order,
+        SUM(c.OrderQuantity) / COUNT(c.CustomerKey) AS total_quantity,
+        ROUND(SUM(c.rev), 0) AS total_revenue,
+        ROUND(
+            (SUM(c.rev) - SUM(c.total_cost)) * 100.0 / NULLIF(SUM(c.total_cost), 0),
+            0
+        ) AS profit_per
+    FROM 
+        `product subcategories lookup` p
+    JOIN 
+        (
+            SELECT * 
+            FROM category  
+            WHERE ProductSubcategoryKey NOT IN (1, 2, 3)
+        ) AS c 
+        ON p.ProductSubcategoryKey = c.ProductSubcategoryKey
+    GROUP BY 
+        p.SubcategoryName,
+        p.ProductSubcategoryKey,
+        c.ProductKey,
+        c.ProductPrice
+)
+
+SELECT 
+    price_range,
+    AVG(total_quantity) AS avg_quantity_per_order
+FROM 
+    t1
+GROUP BY 
+    price_range;
+```
+**Output**<br>
+**Low price products has high order quantity per order value**
+| price_range | avg order quantity |
+| ----------- | ------------------ |
+| low         | 1.99722727         |
+| high        | 1                  |
+| mid         | 1.49532222         |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

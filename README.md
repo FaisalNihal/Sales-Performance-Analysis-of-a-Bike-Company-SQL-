@@ -1388,6 +1388,120 @@ GROUP BY
 | mid         | 1.49532222         |
 
 
+# Countrywise Performance Analysis And Return Rate Analysis
+
+**Country wise sales performance**
+```sql
+SELECT 
+    t.Country,
+    COUNT(s.ProductKey) AS order_number,
+    SUM(s.OrderQuantity) AS order_quantity,
+    SUM(s.OrderQuantity * p.ProductPrice) AS revenue,
+    ROUND(
+        (SUM(s.OrderQuantity * p.ProductPrice) - SUM(s.OrderQuantity * p.ProductCost)) * 100.0
+        / NULLIF(SUM(s.OrderQuantity * p.ProductCost), 0),
+        0
+    ) AS profit
+FROM 
+    `territory lookup` t
+JOIN 
+    `adventureworks sales data` s 
+    ON t.SalesTerritoryKey = s.TerritoryKey
+JOIN 
+    `product lookup` p 
+    ON s.ProductKey = p.ProductKey
+GROUP BY  
+    t.Country;
+```
+**Output**
+| country        | order_number | order_quantity | revenue | profit |
+| -------------- | ------------ | -------------- | ------- | ------ |
+| United States  | 19811        | 29823          | 7938999 | 73.6   |
+| Australia      | 12409        | 17951          | 7416456 | 70.9   |
+| United Kingdom | 6423         | 9694           | 2902562 | 72.0   |
+| Germany        | 5289         | 7950           | 2524680 | 71.7   |
+| France         | 5239         | 7862           | 2362643 | 72.0   |
+| Canada         | 6875         | 10894          | 1769246 | 74.9   |
+
+<img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/d4c31e56-c0c2-4ad5-b3ce-3c766b87ef46" /><br>
+
+**Product Subcategory wise return_rate(top 10 subcategory by return rate)**
+```sql
+WITH t1 AS (
+    SELECT 
+        c.ProductSubcategoryKey,
+        SUM(r.ReturnQuantity) AS return_number
+    FROM 
+        `rturn_number` r
+    JOIN 
+        `product lookup` c 
+        ON r.ProductKey = c.ProductKey 
+    GROUP BY 
+        c.ProductSubcategoryKey
+),
+
+t2 AS (
+    SELECT 
+        c.ProductSubcategoryKey,
+        SUM(a.OrderQuantity) AS order_number
+    FROM 
+        category a
+    JOIN 
+        `product lookup` c 
+        ON a.ProductKey = c.ProductKey 
+    GROUP BY 
+        c.ProductSubcategoryKey
+)
+
+SELECT 
+    t1.ProductSubcategoryKey,
+    t2.order_number,
+    ROUND(
+        t1.return_number * 100.0 / NULLIF(t2.order_number, 0),
+        2
+    ) AS return_rate
+FROM 
+    t1
+JOIN 
+    t2 ON t1.ProductSubcategoryKey = t2.ProductSubcategoryKey
+ORDER BY 
+    return_rate DESC
+LIMIT 10;
+```
+**Output**
+| ProductSubcategoryKey | order_quantity | return_rate |
+| --------------------- | -------------- | ----------- |
+| 26                    | 302            | 2.649       |
+| 1                     | 4706           | 2.8899      |
+| 21                    | 3113           | 2.9875      |
+| 31                    | 6034           | 3.1157      |
+| 2                     | 7099           | 3.1413      |
+| 3                     | 2124           | 3.2957      |
+| 27                    | 234            | 3.4188      |
+| 32                    | 695            | 3.5971      |
+| 25                    | 521            | 3.6468      |
+| 22                    | 944            | 4.2373      |<br>
+
+
+**Return rate over time**
+```sql
+ with t1 as (select extract(year from orderdate) as _year ,count(productkey) as order_number from `category`
+ group by extract(year from orderdate)),
+ t2 as (select extract(year from `ReturnDate`) as _year ,count(productkey) as return_number from `rturn_number`
+ group by extract(year from returndate))
+ select t1._year,t1.order_number,t2.return_number*100/t1.order_number as return_rate from t1 join t2
+ on t1._year=t2._year
+```
+**Output**
+| Year | order_quantity | return_rate |
+| ---- | -------------- | ----------- |
+| 2022 | 29481          | 3.2563      |
+| 2021 | 23935          | 3.192       |
+| 2020 | 2630           | 3.2319      |
+
+
+
+
 
 
 

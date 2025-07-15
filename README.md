@@ -680,10 +680,10 @@ GROUP BY
 | Clothing     | 8510         | 12436          | 365419   | 79      |
 | Accessories  | 33607        | 57809          | 906673   | 169     |
 
-<img width="553" height="452" alt="image" src="https://github.com/user-attachments/assets/8a4b3929-1811-42ce-8cdf-1114d7005bdc" /> <br>
+<img width="553" height="452" alt="image" src="https://github.com/user-attachments/assets/8a4b3929-1811-42ce-8cdf-1114d7005bdc" /> <br> <br>
 
 
-**Sales Analysis of main product(bikes)**
+**Sales Analysis of main product(bikes)** <br>
 **Performance Summary of Different Bike Types**
 ```sql
 SELECT 
